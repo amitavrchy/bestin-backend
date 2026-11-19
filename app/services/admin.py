@@ -61,7 +61,14 @@ def upload_book(
         storage.delete_book(book.id)
         db.rollback()
         raise
-    return start_ingest(db, book)
+    try:
+        return start_ingest(db, book)
+    except HTTPException:
+        book_id = book.id
+        db.delete(book)
+        db.commit()
+        storage.delete_book(book_id)
+        raise
 
 
 def update_book(book_id: int, body: BookPatch, db: Session):

@@ -13,6 +13,7 @@ def configure_database():
     global engine
     settings = get_settings()
     url = settings.database_url
+    candidate = None
     try:
         candidate = create_engine(
             url,
@@ -21,6 +22,8 @@ def configure_database():
         with candidate.connect() as connection:
             connection.execute(text("SELECT 1"))
     except Exception:
+        if candidate is not None:
+            candidate.dispose()
         if not settings.db_fallback_sqlite or not url.startswith("postgresql"):
             raise
         logger.warning("PostgreSQL unavailable; falling back to SQLite", exc_info=True)

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.models import Conversation
 
 
-def owned_conversation(db, conversation_id, user_id):
+def owned_conversation(db: Session, conversation_id: int, user_id: int) -> Conversation:
     conversation = db.scalar(
         select(Conversation).where(
             Conversation.id == conversation_id, Conversation.user_id == user_id
@@ -19,7 +19,7 @@ def owned_conversation(db, conversation_id, user_id):
     return conversation
 
 
-def create(body: ConversationCreate, user: User, db: Session):
+def create(body: ConversationCreate, user: User, db: Session) -> Conversation:
     visible_book(db, body.book_id, user)
     conversation = Conversation(user_id=user.id, book_id=body.book_id)
     db.add(conversation)
@@ -27,7 +27,7 @@ def create(body: ConversationCreate, user: User, db: Session):
     return conversation
 
 
-def listing(book_id: int | None, user: User, db: Session):
+def listing(book_id: int | None, user: User, db: Session) -> list[Conversation]:
     query = select(Conversation).where(Conversation.user_id == user.id)
     if book_id is not None:
         query = query.where(Conversation.book_id == book_id)
@@ -36,16 +36,17 @@ def listing(book_id: int | None, user: User, db: Session):
     ).all()
 
 
-def detail(conversation_id: int, user: User, db: Session):
+def detail(conversation_id: int, user: User, db: Session) -> Conversation:
     return owned_conversation(db, conversation_id, user.id)
 
 
-def delete(conversation_id: int, user: User, db: Session):
+def delete(conversation_id: int, user: User, db: Session) -> None:
     db.delete(owned_conversation(db, conversation_id, user.id))
     db.commit()
 
 
-def ask(conversation_id: int, body: Ask, user: User, db: Session):
+def ask(conversation_id: int, body: Ask, user: User, db: Session) -> dict:
+    """Persist the question and answer together only after AI succeeds."""
     conversation = owned_conversation(db, conversation_id, user.id)
     visible_book(db, conversation.book_id, user)
     history = [

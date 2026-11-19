@@ -9,7 +9,8 @@ from app.services import ai_client
 logger = logging.getLogger(__name__)
 
 
-def sync_book(db, book):
+def sync_book(db: Session, book: Book) -> Book:
+    """Refresh pending ingestion without hiding the last known state on an outage."""
     if book.status not in ("queued", "processing"):
         return book
     try:
@@ -33,7 +34,7 @@ def sync_book(db, book):
     return book
 
 
-def visible_book(db, book_id, user):
+def visible_book(db: Session, book_id: int, user: User) -> Book:
     book = db.get(Book, book_id)
     if book:
         sync_book(db, book)
@@ -44,7 +45,7 @@ def visible_book(db, book_id, user):
     return book
 
 
-def list_books(q: str | None, user: User, db: Session):
+def list_books(q: str | None, user: User, db: Session) -> list[Book]:
     query = select(Book).order_by(Book.created_at.desc())
     if q:
         query = query.where(

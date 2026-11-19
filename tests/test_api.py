@@ -564,3 +564,22 @@ def test_ask_failure_does_not_store_messages(client, reader, book):
 def test_request_id_and_missing_cover(client):
     response = client.get("/api/books/999/cover")
     assert response.status_code == 404 and len(response.headers["x-request-id"]) == 32
+
+
+def test_failed_ingest_cleans_upload(client, tmp_path):
+    from fastapi import HTTPException
+
+    admin = auth(client)
+    with patch(
+        "app.services.ai_client.request",
+        side_effect=HTTPException(502, "ai_unavailable"),
+    ):
+        response = client.post(
+            "/api/admin/books",
+            headers=admin,
+            data={"title": "Failed"},
+            files={"file": ("book.txt", b"content")},
+        )
+    assert response.status_code == 502
+    assert client.get("/api/books", headers=admin).json() == []
+    assert not list((tmp_path / "storage" / "books").glob("*"))
