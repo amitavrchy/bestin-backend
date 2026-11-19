@@ -171,3 +171,64 @@ def test_sqlite_fallback(tmp_path, monkeypatch):
         assert client.get("/health").json()["db"] == "sqlite"
         assert Path("data/bestin.db").exists()
     get_settings.cache_clear()
+
+
+def test_ai_error_mapping_and_voice(client):
+    import httpx
+    import respx
+
+    headers = auth(client)
+    with respx.mock:
+        respx.get("http://localhost:8001/v1/voices").mock(
+            side_effect=httpx.ConnectError("offline")
+        )
+        response = client.get("/api/voices", headers=headers)
+        assert response.status_code == 502
+        assert response.json() == {"detail": "ai_unavailable"}
+        respx.post("http://localhost:8001/v1/stt").respond(
+            503, json={"detail": "stt_unavailable"}
+        )
+        response = client.post(
+            "/api/stt",
+            headers=headers,
+            files={"file": ("audio.wav", b"audio", "audio/wav")},
+        )
+        assert response.status_code == 503
+        assert response.json()["detail"] == "stt_unavailable"
+
+
+def test_upload_validation_and_cover(client):
+    from io import BytesIO
+    from PIL import Image
+
+    admin = auth(client)
+    with patch("app.services.ai_client.request", side_effect=ai):
+        response = client.post(
+            "/api/admin/books",
+            headers=admin,
+            data={"title": "Bad"},
+            files={"file": ("bad.exe", b"x")},
+        )
+        assert response.status_code == 400
+        response = client.post(
+            "/api/admin/books",
+            headers=admin,
+            data={"title": "Good"},
+            files={"file": ("book.md", b"# Book")},
+        )
+        book_id = response.json()["id"]
+        image = BytesIO()
+        Image.new("RGB", (1000, 500), "red").save(image, "PNG")
+        response = client.put(
+            f"/api/admin/books/{book_id}/cover",
+            headers=admin,
+            files={"cover": ("cover.png", image.getvalue(), "image/png")},
+        )
+        assert response.status_code == 200 and response.json()["has_cover"]
+        response = client.get(f"/api/books/{book_id}/cover")
+        assert (
+            response.status_code == 200
+            and response.headers["content-type"] == "image/webp"
+        )
+        with Image.open(BytesIO(response.content)) as resized:
+            assert resized.size == (600, 300)
