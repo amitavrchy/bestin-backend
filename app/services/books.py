@@ -1,3 +1,6 @@
+from sqlalchemy import or_, select
+from sqlalchemy.orm import Session
+from app.models import User
 import logging
 from fastapi import HTTPException
 from app.models import Book
@@ -39,3 +42,19 @@ def visible_book(db, book_id, user):
     ):
         raise HTTPException(404, "book_not_found")
     return book
+
+
+def list_books(q: str | None, user: User, db: Session):
+    query = select(Book).order_by(Book.created_at.desc())
+    if q:
+        query = query.where(
+            or_(Book.title.ilike(f"%{q}%"), Book.author.ilike(f"%{q}%"))
+        )
+    books = db.scalars(query).all()
+    for book in books:
+        sync_book(db, book)
+    return [
+        b
+        for b in books
+        if user.role == "admin" or (b.status == "ready" and b.is_published)
+    ]

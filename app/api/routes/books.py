@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
-from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from app.api.deps import current_user
 from app.db.session import get_db
 from app.models import Book, User
 from app.schemas import BookOut
-from app.services.books import sync_book, visible_book
+from app.services.books import visible_book
+from app.services import books as service
+
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
@@ -17,19 +18,7 @@ def list_books(
     user: User = Depends(current_user),
     db: Session = Depends(get_db),
 ):
-    query = select(Book).order_by(Book.created_at.desc())
-    if q:
-        query = query.where(
-            or_(Book.title.ilike(f"%{q}%"), Book.author.ilike(f"%{q}%"))
-        )
-    books = db.scalars(query).all()
-    for book in books:
-        sync_book(db, book)
-    return [
-        b
-        for b in books
-        if user.role == "admin" or (b.status == "ready" and b.is_published)
-    ]
+    return service.list_books(q, user, db)
 
 
 @router.get("/{book_id}", response_model=BookOut)
