@@ -39,7 +39,7 @@ The PostgreSQL test database is destructive: the suite drops its product tables 
 ## Troubleshooting
 
 - Check `/health` and the startup logs for database fallback or an unreachable AI service. Verify PostgreSQL credentials, the AI URL, and the shared token.
-- `502 ai_unavailable` means the AI service could not be reached or returned a server error. A keyless STT service may return `503 stt_unavailable`; clients can use browser speech recognition.
+- `502 ai_unavailable` means the AI service could not be reached or returned a server error. Check the AI service local transcription model if voice input is unavailable.
 - If a book fails ingestion, inspect its error in admin and retry after fixing the AI service. Check `MAX_UPLOAD_MB`, file extension, and storage permissions for upload errors.
 - SQLite fallback is a separate database, not a replica; restore PostgreSQL connectivity before expecting its data to appear.
 

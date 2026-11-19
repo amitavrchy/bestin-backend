@@ -623,3 +623,25 @@ def test_ask_maps_ai_conflict_without_saving(client, reader, book):
     assert (
         client.get(f"/api/conversations/{cid}", headers=reader).json()["messages"] == []
     )
+
+
+def test_ask_voice(client, reader, book):
+    def voice_ai(method, path, **kwargs):
+        if path == "/v1/stt":
+            return {"text": "  What happened?  "}
+        return ai(method, path, **kwargs)
+
+    with patch("app.services.ai_client.request", side_effect=voice_ai) as mock:
+        cid = client.post("/api/conversations", headers=reader, json={"book_id": book}).json()["id"]
+        url = f"/api/conversations/{cid}/ask-voice"
+        result = client.post(url, headers=reader, files={"file": ("a.webm", b"audio", "audio/webm")}, data={"speak": "false", "style": "detailed"})
+        assert result.status_code == 200
+        assert result.json()["transcript"] == "What happened?"
+        assert result.json()["input"] == "voice"
+        ask = [call.kwargs["json"] for call in mock.call_args_list if call.args[1] == "/v1/ask"][-1]
+        assert ask["question"] == "What happened?" and ask["speak"] is False and ask["style"] == "detailed"
+        assert len(client.get(f"/api/conversations/{cid}", headers=reader).json()["messages"]) == 2
+        assert client.post(url, headers=reader, files={"file": ("a.webm", b"x" * (10 * 1024 * 1024 + 1))}).status_code == 413
+    with patch("app.services.ai_client.request", return_value={"text": "  "}):
+        response = client.post(url, headers=reader, files={"file": ("a.webm", b"audio")})
+        assert response.status_code == 422 and response.json()["detail"] == "no_speech"
