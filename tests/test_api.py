@@ -209,7 +209,7 @@ def test_upload_validation_and_cover(client):
             data={"title": "Bad"},
             files={"file": ("bad.exe", b"x")},
         )
-        assert response.status_code == 400
+        assert response.status_code == 415
         response = client.post(
             "/api/admin/books",
             headers=admin,

@@ -2,10 +2,12 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from time import perf_counter
+from uuid import uuid4
 import httpx
 from alembic import command
 from alembic.config import Config
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from app.api.routes import admin, auth, books, conversations, voice
@@ -48,9 +50,10 @@ async def lifespan(app: FastAPI):
         command.upgrade(config, "head")
     settings = get_settings()
     with session.SessionLocal() as db:
-        if not db.scalar(
+        admin_user = db.scalar(
             select(User).where(User.email == settings.admin_email.lower())
-        ):
+        )
+        if not admin_user:
             db.add(
                 User(
                     email=settings.admin_email.lower(),
@@ -59,6 +62,9 @@ async def lifespan(app: FastAPI):
                     role="admin",
                 )
             )
+            db.commit()
+        elif settings.admin_reset_password_on_start:
+            admin_user.password_hash = hash_password(settings.admin_password)
             db.commit()
     task = asyncio.create_task(poll())
     yield
@@ -69,7 +75,39 @@ async def lifespan(app: FastAPI):
 
 
 settings = get_settings()
-app = FastAPI(title="Bestin Backend", lifespan=lifespan)
+app = FastAPI(
+    title="Bestin Backend",
+    description="Book administration, grounded conversations and voice services.",
+    lifespan=lifespan,
+)
+
+
+@app.middleware("http")
+async def request_logging(request: Request, call_next):
+    request_id = uuid4().hex
+    start = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "request_id=%s method=%s path=%s failed",
+            request_id,
+            request.method,
+            request.url.path,
+        )
+        raise
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request_id=%s method=%s path=%s status=%s duration_ms=%.1f",
+        request_id,
+        request.method,
+        request.url.path,
+        response.status_code,
+        (perf_counter() - start) * 1000,
+    )
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

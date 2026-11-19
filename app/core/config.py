@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 1440
     admin_email: str = "admin@bestin.local"
     admin_password: str = "admin12345"
+    admin_reset_password_on_start: bool = False
     ai_url: str = "http://localhost:8001"
     ai_internal_token: str = "dev-internal-token"
     ai_timeout: float = 30
