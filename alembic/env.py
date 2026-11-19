@@ -9,14 +9,20 @@ target_metadata = Base.metadata
 
 
 def run_migrations_online():
-    connection = config.attributes.get('connection')
+    connection = config.attributes.get("connection")
     if connection is not None:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
         return
-    config.set_main_option('sqlalchemy.url', get_settings().database_url.replace('%', '%%'))
-    engine = engine_from_config(config.get_section(config.config_ini_section), prefix='sqlalchemy.', poolclass=pool.NullPool)
+    config.set_main_option(
+        "sqlalchemy.url", get_settings().database_url.replace("%", "%%")
+    )
+    engine = engine_from_config(
+        config.get_section(config.config_ini_section),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
@@ -24,7 +30,11 @@ def run_migrations_online():
 
 
 def run_migrations_offline():
-    context.configure(url=get_settings().database_url, target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=get_settings().database_url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

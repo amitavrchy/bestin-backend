@@ -14,15 +14,20 @@ def configure_database():
     settings = get_settings()
     url = settings.database_url
     try:
-        candidate = create_engine(url, connect_args={'connect_timeout': 3} if url.startswith('postgresql') else {})
+        candidate = create_engine(
+            url,
+            connect_args={"connect_timeout": 3} if url.startswith("postgresql") else {},
+        )
         with candidate.connect() as connection:
-            connection.execute(text('SELECT 1'))
+            connection.execute(text("SELECT 1"))
     except Exception:
-        if not settings.db_fallback_sqlite or not url.startswith('postgresql'):
+        if not settings.db_fallback_sqlite or not url.startswith("postgresql"):
             raise
-        logger.warning('PostgreSQL unavailable; falling back to SQLite', exc_info=True)
-        Path('data').mkdir(exist_ok=True)
-        candidate = create_engine('sqlite:///data/bestin.db', connect_args={'check_same_thread': False})
+        logger.warning("PostgreSQL unavailable; falling back to SQLite", exc_info=True)
+        Path("data").mkdir(exist_ok=True)
+        candidate = create_engine(
+            "sqlite:///data/bestin.db", connect_args={"check_same_thread": False}
+        )
     engine = candidate
     SessionLocal.configure(bind=engine)
     return engine

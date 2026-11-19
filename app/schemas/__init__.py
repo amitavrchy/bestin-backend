@@ -28,7 +28,7 @@ class Login(BaseModel):
 
 class Token(BaseModel):
     access_token: str
-    token_type: str = 'bearer'
+    token_type: str = "bearer"
     user: UserOut
 
 
@@ -91,7 +91,7 @@ class Ask(BaseModel):
     question: str = Field(min_length=1, max_length=10000)
     speak: bool = True
     voice: str | None = None
-    style: Literal['concise', 'detailed'] = 'concise'
+    style: Literal["concise", "detailed"] = "concise"
 
 
 class TTS(BaseModel):

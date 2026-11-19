@@ -17,4 +17,12 @@ def verify_password(password: str, hashed: str) -> bool:
 
 def create_token(user_id: int) -> str:
     settings = get_settings()
-    return jwt.encode({'sub': str(user_id), 'exp': datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)}, settings.jwt_secret, algorithm='HS256')
+    return jwt.encode(
+        {
+            "sub": str(user_id),
+            "exp": datetime.now(timezone.utc)
+            + timedelta(minutes=settings.jwt_expire_minutes),
+        },
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
