@@ -88,3 +88,10 @@ Roles: `admin`, `user`. Seeded admin from env `ADMIN_EMAIL` (default `admin@best
 - Env: `VITE_API_URL` (default `http://localhost:8000`).
 - Routes: `/login`, `/register`, `/` (library / book picker), `/books/:id` (chat with avatar), `/admin` (dashboard), `/admin/books`, `/admin/books/new`, `/admin/books/:id`, `/admin/qa`, `/admin/users`, `/settings`.
 - Token stored in localStorage; route guards for auth and admin role.
+
+
+## Optional backend additions
+- `PATCH /api/auth/me` accepts `{name?, password?}` and returns `User`; password has the same minimum and UTF-8 byte limit as registration.
+- `PATCH /api/admin/users/{id}` accepts `{role?: "admin"|"user", is_active?: bool}` and returns `User` (404 for unknown user). Changes to active status take effect on the next request.
+- Responses include an `X-Request-ID` header for log correlation.
+- Uploads exceeding the configured limit return 413; unsupported file or cover formats return 415.

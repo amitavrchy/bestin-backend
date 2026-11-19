@@ -6,7 +6,7 @@ from app.api.deps import current_user
 from app.core.security import create_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models import User
-from app.schemas import Login, Register, Token, UserOut
+from app.schemas import Login, ProfilePatch, Register, Token, UserOut
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -48,4 +48,18 @@ def login(body: Login, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(current_user)):
+    return user
+
+
+@router.patch("/me", response_model=UserOut)
+def update_me(
+    body: ProfilePatch,
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    if body.name is not None:
+        user.name = body.name
+    if body.password is not None:
+        user.password_hash = hash_password(body.password)
+    db.commit()
     return user

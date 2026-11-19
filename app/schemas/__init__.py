@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Literal
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class ORM(BaseModel):
@@ -97,3 +97,29 @@ class Ask(BaseModel):
 class TTS(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
     voice: str | None = None
+
+
+class ProfilePatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    password: str | None = Field(default=None, min_length=8, max_length=72)
+
+    @field_validator("name")
+    @classmethod
+    def clean_name(cls, value: str | None) -> str | None:
+        if value is not None:
+            value = value.strip()
+            if not value:
+                raise ValueError("name must not be blank")
+        return value
+
+    @field_validator("password")
+    @classmethod
+    def password_bytes(cls, value: str | None) -> str | None:
+        if value is not None and len(value.encode()) > 72:
+            raise ValueError("password must be at most 72 UTF-8 bytes")
+        return value
+
+
+class AdminUserPatch(BaseModel):
+    role: Literal["admin", "user"] | None = None
+    is_active: bool | None = None

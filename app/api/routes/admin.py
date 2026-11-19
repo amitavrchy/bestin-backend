@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.db.session import get_db
 from app.models import Book, Conversation, Message, User
-from app.schemas import BookOut, BookPatch, UserOut
+from app.schemas import AdminUserPatch, BookOut, BookPatch, UserOut
 from app.services import ai_client, storage
 
 router = APIRouter(
@@ -203,3 +203,16 @@ def qa(
 @router.get("/users", response_model=list[UserOut])
 def users(db: Session = Depends(get_db)):
     return db.scalars(select(User).order_by(User.created_at.desc())).all()
+
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+def update_user(user_id: int, body: AdminUserPatch, db: Session = Depends(get_db)):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "user_not_found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        if value is None:
+            raise HTTPException(422, "invalid_field")
+        setattr(user, field, value)
+    db.commit()
+    return user
