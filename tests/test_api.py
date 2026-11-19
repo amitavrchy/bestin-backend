@@ -583,3 +583,43 @@ def test_failed_ingest_cleans_upload(client, tmp_path):
     assert response.status_code == 502
     assert client.get("/api/books", headers=admin).json() == []
     assert not list((tmp_path / "storage" / "books").glob("*"))
+
+
+def test_upload_sends_internal_token_and_file_to_ai(client):
+    import respx
+
+    with respx.mock:
+        route = respx.post(
+            url__regex=r"http://localhost:8001/v1/books/\d+/ingest"
+        ).respond(202, json={"status": "queued"})
+        result = client.post(
+            "/api/admin/books",
+            headers=auth(client),
+            data={"title": "Example"},
+            files={"file": ("book.txt", b"Sample text", "text/plain")},
+        )
+    assert result.status_code == 201
+    assert route.called
+    request = route.calls.last.request
+    assert request.headers["x-internal-token"] == "dev-internal-token"
+    assert b"Sample text" in request.content
+
+
+def test_ask_maps_ai_conflict_without_saving(client, reader, book):
+    import respx
+
+    with patch("app.services.ai_client.request", side_effect=ai):
+        cid = client.post(
+            "/api/conversations", headers=reader, json={"book_id": book}
+        ).json()["id"]
+    with respx.mock:
+        respx.post("http://localhost:8001/v1/ask").respond(
+            409, json={"detail": "still_indexing"}
+        )
+        result = client.post(
+            f"/api/conversations/{cid}/ask", headers=reader, json={"question": "Why?"}
+        )
+    assert result.status_code == 409 and result.json() == {"detail": "book_not_ready"}
+    assert (
+        client.get(f"/api/conversations/{cid}", headers=reader).json()["messages"] == []
+    )
